@@ -9,7 +9,7 @@
     "dev": "nodemon src/index.js --exec babel-node",
     "lint": "eslint --fix src",
     "audit": "snyk test",
-    "test": "mocha ./**/*.spec.js --require @babel/register"
+    "test": "mocha src/**/*.spec.js --require @babel/register"
   },
   "keywords": [],
   "author": "Jessie Wei",
