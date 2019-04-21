@@ -1,29 +1,37 @@
 {
-  "name": "express-api-starter",
-  "version": "1.2.0",
-  "description": " A basic starter for an express.js API",
+  "name": "aws-demo-app-2019-api",
+  "version": "1.0.0",
+  "description": "The API Component of AWS Demo App 2019",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node dist/index.js",
+    "build": "babel src --out-dir dist",
+    "dev": "nodemon src/index.js --exec babel-node",
     "lint": "eslint --fix src",
     "audit": "snyk test",
-    "test": "mocha -w"
+    "test": "mocha ./**/*.spec.js --require @babel/register"
   },
   "keywords": [],
-  "author": "CJ R. <cj@null.computer> (https://w3cj.now.sh)",
+  "author": "Jessie Wei",
   "repository": {
     "type": "git",
-    "url": "https://github.com/w3cj/express-api-starter.git"
+    "url": "https://github.com/jessieweiyi/aws-demo-app-2019-api.git"
   },
   "license": "MIT",
   "dependencies": {
+    "aws-sdk": "^2.437.0",
+    "bunyan": "^1.8.12",
     "dotenv": "^6.2.0",
     "express": "^4.16.4",
     "helmet": "^3.15.0",
-    "morgan": "^1.9.1"
+    "morgan": "^1.9.1",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
+    "@babel/cli": "^7.4.3",
+    "@babel/core": "^7.4.3",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.4.3",
     "eslint": "^5.12.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.14.0",
