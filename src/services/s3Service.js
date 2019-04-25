@@ -9,7 +9,8 @@ export default class S3Service {
     if (this.config.endpoint) {
       connConfig.endpoint = this.config.endpoint;
     }
-    connConfig.s3ForcePathStyle = true;
+    connConfig.s3ForcePathStyle = this.config.s3ForcePathStyle;
+
     this.s3 = new AWS.S3(connConfig);
   }
 
@@ -18,15 +19,16 @@ export default class S3Service {
 
     return new Promise((resolve, reject) => {
       self.s3.putObject({
-        Bucket: self.config.bucket_name,
+        Bucket: self.config.bucketName,
         Key: objectKey,
         Body: buffer,
         ContentLength: contentLength
       }, (err) => {
         if (err) {
+          logger.error(`S3 Object Upload Failed: ${err}`);
           reject(err);
         } else {
-          logger.debug('S3 Object Uploaded', { objectKey });
+          logger.debug('S3 Object Upload Succeed', { objectKey });
           resolve(objectKey);
         }
       });

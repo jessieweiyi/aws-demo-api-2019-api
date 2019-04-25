@@ -7,18 +7,21 @@ const logger = Logger.logger('routeSubmitJob');
 function submitJob(req, res, next) {
   const jobId = uuidV1();
   const { fileName } = req.params;
+  const objectKey = `${jobId}/${fileName}`;
   const sqsService = AWSServiceFactory.getSQSService();
   const s3Service = AWSServiceFactory.getS3Service();
-  const objectKey = `${jobId}/${fileName}`;
+  const dbService = AWSServiceFactory.getDBService();
+
   const contentLength = req.headers['Content-Length'];
 
-  return s3Service.uploadObject(req.body, objectKey, contentLength).then((returnedKey) => {
-    const job = {
-      jobId,
-      objectKey: returnedKey
-    };
-    return sqsService.enQueue(job);
-  })
+  const job = {
+    jobId,
+    objectKey
+  };
+
+  return s3Service.uploadObject(req.body, objectKey, contentLength)
+    .then(() => dbService.addJob(job))
+    .then(() => sqsService.enQueue(job))
     .then(() => res.status(200).json({ jobId }))
     .catch((error) => {
       logger.error(error);
