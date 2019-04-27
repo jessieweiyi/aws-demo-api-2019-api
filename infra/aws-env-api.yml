@@ -1,6 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: The API Service deployed on AWS Fargate, hosted in a public subnet and accessible via a public load balancer.
 Parameters:
+  Environment:
+    Type: String
+    Description: "The deployment environment: dev, prod"
   ClusterStackName:
     Type: String
     Description: "The name of the Fargate cluster stack"
@@ -60,6 +63,10 @@ Resources:
           Image: !Ref 'ImageURL'
           PortMappings:
             - ContainerPort: !Ref 'ContainerPort'
+          Environment:
+            -
+              NAME: DOTENV_CONFIG_PATH
+              Value: .!Join ['.', ['/opt/app/.env', !Ref 'Environment']]
   Service:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule

@@ -5,8 +5,7 @@ import helmet from 'helmet';
 import bodyParser from 'body-parser';
 import middlewares from './middlewares';
 import api from './api';
-
-require('dotenv').config();
+import Logger from './utils/logger';
 
 const app = express();
 
@@ -37,5 +36,6 @@ app.use('/api/v1', api);
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
 
+console.log('Environment', process.env);
 
 module.exports = app;

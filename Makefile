@@ -60,7 +60,8 @@ endif
 
 PROVISION_PARAMETERS_STACK_ENV := --stack-name $(STACK_NAME_ENV_API) \
 		--template-body file://$(FOLDER_CF_TEMPLATES)/$(FILE_CF_TEMPLATE_ENV_API) \
-		--parameters ParameterKey=ClusterStackName,ParameterValue=$(CLUSTER_STACK_NAME) \
+		--parameters ParameterKey=Environment,ParameterValue=$(Environment)
+			ParameterKey=ClusterStackName,ParameterValue=$(CLUSTER_STACK_NAME) \
 			ParameterKey=ServiceName,ParameterValue=$(PROJECT)-$(ENVIRONMENT) \
 			ParameterKey=Route53HostedZone,ParameterValue=$(ROUTE53_HOSTEDZONE) \
 			ParameterKey=DomainName,ParameterValue=$(DOMAIN_NAME) \
