@@ -14,7 +14,7 @@ export default class S3Service {
     this.s3 = new AWS.S3(connConfig);
   }
 
-  uploadObject(buffer, objectKey, contentLength) {
+  uploadObject(buffer, objectKey) {
     const self = this;
 
     return new Promise((resolve, reject) => {
@@ -22,7 +22,7 @@ export default class S3Service {
         Bucket: self.config.bucketName,
         Key: objectKey,
         Body: buffer,
-        ContentLength: contentLength
+        ACL: 'public-read'
       }, (err) => {
         if (err) {
           logger.error(`S3 Object Upload Failed: ${err}`);
