@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: The API Service deployed on AWS Fargate, hosted in a public subnet and accessible via a public load balancer.
+Parameters:
+  ClusterStackName:
+    Type: String
+    Description: "The name of the Fargate cluster stack"
+  ServiceName:
+    Type: String
+    Default: nginx
+    Description: A name for the service
+  Route53HostedZone:
+    Type: String
+    Description: "The DNS name of an existing Amazon Route 53 hosted zone"
+    AllowedPattern: (?!-)[a-zA-Z0-9-.]{1,63}(?<!-)
+    ConstraintDescription: "must be a valid DNS zone name."
+  DomainName:
+    Type: String
+    Description: "The full domain name of the website"
+    AllowedPattern: (?!-)[a-zA-Z0-9-.]{1,63}(?<!-)
+    ConstraintDescription: "must be a valid DNS zone name."
+  ImageURL:
+    Type: String
+    Description: The url of a docker image
+  AWSServicesStackName: 
+    Type: String
+    Description: "The name of the AWS services stack"
+  ContainerPort:
+    Type: Number
+    Default: 4000
+    Description: What port number the application inside the docker container is binding to
+  ContainerCpu:
+    Type: Number
+    Default: 512
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Default: 1024
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Default: 2
+    Description: How many copies of the service task to run
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref 'ServiceName'
+      Cpu: !Ref 'ContainerCpu'
+      Memory: !Ref 'ContainerMemory'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'ClusterStackName', 'ECSTaskExecutionRole']]
+      ContainerDefinitions:
+        - Name: !Ref 'ServiceName'
+          Cpu: !Ref 'ContainerCpu'
+          Memory: !Ref 'ContainerMemory'
+          Image: !Ref 'ImageURL'
+          PortMappings:
+            - ContainerPort: !Ref 'ContainerPort'
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: LoadBalancerRule
+    Properties:
+      ServiceName: !Ref 'ServiceName'
+      Cluster:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'ClusterStackName', 'ClusterName']]
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref 'DesiredCount'
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - Fn::ImportValue:
+                !Join [':', [!Ref 'ClusterStackName', 'ContainerSecurityGroup']]
+          Subnets:
+            - Fn::ImportValue:
+                !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetOne']]
+            - Fn::ImportValue:
+                !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetTwo']]
+      TaskDefinition: !Ref 'TaskDefinition'
+      LoadBalancers:
+        - ContainerName: !Ref 'ServiceName'
+          ContainerPort: !Ref 'ContainerPort'
+          TargetGroupArn: !Ref 'TargetGroup'
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckPath: /_health
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: ip
+      Name: !Ref 'ServiceName'
+      Port: !Ref 'ContainerPort'
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'ClusterStackName', 'VPCId']]
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: 'forward'
+      Conditions:
+        - Field: path-pattern
+          Values: ['*']
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '30'
+      Subnets:
+        - Fn::ImportValue:
+            !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetOne']]
+        - Fn::ImportValue:
+            !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetTwo']]
+      SecurityGroups: [!Ref 'LoadBalancerSG']
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - LoadBalancer
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: 'forward'
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+  LoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the load balancer
+      VpcId: 
+        Fn::ImportValue:
+          !Join [':', [!Ref 'ClusterStackName', 'VPCId']]
+      SecurityGroupIngress:
+          # Allow access to ALB from anywhere on the internet
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: -1
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    DependsOn: LoadBalancer
+    Properties:
+      HostedZoneName: !Join ['', [!Ref 'Route53HostedZone', .]]
+      Comment: "DNS name for AWS Demo App API"
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt LoadBalancer.DNSName
+        EvaluateTargetHealth: false
+        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+Outputs:
+  APIDomainName:
+    Description: Domain name of the api
+    Value: !Ref 'DomainName'
+    Export:
+      Name: !Join [ ':', [ !Ref 'AWS::StackName', 'APIDomainName' ] ]
