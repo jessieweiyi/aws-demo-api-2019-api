@@ -29,7 +29,7 @@ publish:
 .PHONY: write-image-definitions
 write-image-definitions:
 	@echo Writing image definitions file...
-	printf '[{"name":"%s","imageUri":"%s")}]' $(PROJECT) $(IMAGE_URL) > imagedefinitions.json
+	printf '[{"name":"%s","imageUri":"%s"}]' $(PROJECT) $(IMAGE_URL) > imagedefinitions.json
 
 FOLDER_CF_TEMPLATES := $(PWD)/infra
 FILE_CF_TEMPLATE_ENV_API := aws-env-api.yml
