@@ -4,8 +4,17 @@ Parameters:
   ECRRepositoryName:
     Type: String
     Description: "The  Name of ECR Repository"
+  GithubRepo:
+    Type: String
+    Description: "The Github repository"
 Resources: 
   ECRRepository:
     Type: AWS::ECR::Repository
     Properties: 
       RepositoryName: !Ref 'ECRRepositoryName'
+  ArtifactStore:
+    Type: "AWS::S3::Bucket"
+    Properties: 
+      VersioningConfiguration:
+        Status: Enabled
+

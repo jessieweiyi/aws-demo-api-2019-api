@@ -11,7 +11,7 @@ phases:
       - make VERSION=$(VERSION) build
   post_build:
     commands:
-      - make VERSION=$(VERSION) build
-      - make VERSION=$(VERSION) write-image-definitions
+      - make VERSION=$VERSION build
+      - make VERSION=$VERSION write-image-definitions
 artifacts:
     files: imagedefinitions.json
