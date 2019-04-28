@@ -4,12 +4,14 @@ phases:
   pre_build:
     commands:
       - make login-ecr
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - VERSION=${COMMIT_HASH:=latest}
   build:
     commands:
-      - make build
+      - make VERSION=$VERSION build
   post_build:
     commands:
-      - make publish
-      - make write-image-definitions
+      - make VERSION=$VERSION publish
+      - make VERSION=$VERSION write-image-definitions
 artifacts:
     files: imagedefinitions.json
