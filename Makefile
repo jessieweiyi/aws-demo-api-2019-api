@@ -60,7 +60,7 @@ endif
 
 PROVISION_PARAMETERS_STACK_ENV := --stack-name $(STACK_NAME_ENV_API) \
 		--template-body file://$(FOLDER_CF_TEMPLATES)/$(FILE_CF_TEMPLATE_ENV_API) \
-		--parameters ParameterKey=Environment,ParameterValue=$(Environment)
+		--parameters ParameterKey=Environment,ParameterValue=$(ENVIRONMENT) \
 			ParameterKey=ClusterStackName,ParameterValue=$(CLUSTER_STACK_NAME) \
 			ParameterKey=ServiceName,ParameterValue=$(PROJECT)-$(ENVIRONMENT) \
 			ParameterKey=Route53HostedZone,ParameterValue=$(ROUTE53_HOSTEDZONE) \
@@ -74,3 +74,8 @@ PROVISION_PARAMETERS_STACK_ENV := --stack-name $(STACK_NAME_ENV_API) \
 create-env-api: 
 	aws cloudformation create-stack $(PROVISION_PARAMETERS_STACK_ENV)
 	aws cloudformation wait stack-create-complete --stack-name $(STACK_NAME_ENV_API)
+
+.PHONY: update-env-api
+update-env-api: 
+	aws cloudformation update-stack $(PROVISION_PARAMETERS_STACK_ENV)
+	aws cloudformation wait stack-update-complete --stack-name $(STACK_NAME_ENV_API)

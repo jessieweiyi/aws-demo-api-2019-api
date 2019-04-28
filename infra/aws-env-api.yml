@@ -9,7 +9,6 @@ Parameters:
     Description: "The name of the Fargate cluster stack"
   ServiceName:
     Type: String
-    Default: nginx
     Description: A name for the service
   Route53HostedZone:
     Type: String
@@ -56,6 +55,7 @@ Resources:
       ExecutionRoleArn:
         Fn::ImportValue:
           !Join [':', [!Ref 'ClusterStackName', 'ECSTaskExecutionRole']]
+      TaskRoleArn: !Ref TaskRole
       ContainerDefinitions:
         - Name: !Ref 'ServiceName'
           Cpu: !Ref 'ContainerCpu'
@@ -65,8 +65,16 @@ Resources:
             - ContainerPort: !Ref 'ContainerPort'
           Environment:
             -
-              NAME: DOTENV_CONFIG_PATH
-              Value: .!Join ['.', ['/opt/app/.env', !Ref 'Environment']]
+              Name: DOTENV_CONFIG_PATH
+              Value: !Join ['.', ['/opt/app/.env', !Ref 'Environment']]
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: 
+                Fn::ImportValue:
+                  !Join [':', [!Ref 'ClusterStackName', 'CloudwatchLogsGroup']]
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ServiceName
   Service:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
@@ -96,11 +104,50 @@ Resources:
         - ContainerName: !Ref 'ServiceName'
           ContainerPort: !Ref 'ContainerPort'
           TargetGroupArn: !Ref 'TargetGroup'
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref 'ServiceName'
+      AssumeRolePolicyDocument:
+        Statement:
+        - 
+          Effect: Allow
+          Principal:
+            Service: [ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: TaskRolePolice
+          PolicyDocument:
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - s3:*
+                Resource:
+                  - Fn::ImportValue: 
+                      !Join [':', [!Ref 'AWSServicesStackName', 'S3BucketARN']]
+              -
+                Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: 
+                  Fn::ImportValue: 
+                    !Join [':', [!Ref 'AWSServicesStackName', 'SQSQueueARN']]
+              -
+                Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:Query
+                  - dynamodb:PutItem
+                Resource: 
+                  Fn::ImportValue: 
+                    !Join [':', [!Ref 'AWSServicesStackName', 'DynamoDBTableARN']]
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 6
-      HealthCheckPath: /_health
+      HealthCheckPath: /api/v1/_health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
@@ -158,6 +205,15 @@ Resources:
           # Allow access to ALB from anywhere on the internet
           - CidrIp: 0.0.0.0/0
             IpProtocol: -1
+  IngressFromLoadBalancer:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress from the ALB
+      GroupId: 
+        Fn::ImportValue:
+          !Join [':', [!Ref 'ClusterStackName', 'ContainerSecurityGroup']]
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref 'LoadBalancerSG'
   DNSRecord:
     Type: AWS::Route53::RecordSet
     DependsOn: LoadBalancer
