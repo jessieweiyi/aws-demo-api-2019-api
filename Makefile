@@ -3,8 +3,10 @@ REGISTRY := 897785104057.dkr.ecr.ap-southeast-2.amazonaws.com
 AWS_REGION := ap-southeast-2
 ENVIRONMENT := dev
 
-VERSION = $(shell whoami)
+COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+VERSION=${COMMIT_HASH:=latest}
 APP_IMAGE = $(PROJECT):$(VERSION)
+IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 
 .PHONY: build
 build:
@@ -15,8 +17,6 @@ build:
 login-ecr:
 	@echo Logging in to Amazon ECR...
 	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
-
-IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 
 .PHONY: publish
 publish: 
