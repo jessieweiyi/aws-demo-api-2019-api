@@ -1,11 +1,10 @@
-.git
+.git/
 .gitignore
 README.md
 node_modules/
 dist/
 reports/
 tmp/
-config/local.json
 .DS_STORE
 .idea
 *.seed
@@ -15,3 +14,4 @@ config/local.json
 .env
 .jshintrc
 .project
+imagedefinitions.json

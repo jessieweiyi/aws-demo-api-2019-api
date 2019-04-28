@@ -74,3 +74,6 @@ typings/
 
 # Serverless directories
 .serverless
+
+# Build Artifects
+imagedefinitions.json

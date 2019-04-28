@@ -8,20 +8,28 @@ APP_IMAGE = $(PROJECT):$(VERSION)
 
 .PHONY: build
 build:
+	@echo Building the Docker image... 
 	docker build -t $(APP_IMAGE) .
 
 .PHONY: login-ecr
 login-ecr:
+	@echo Logging in to Amazon ECR...
 	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
 
 IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 
 .PHONY: publish
-publish: login-ecr
+publish: 
+	@echo Tagging and Pushing the Docker images...
 	docker tag $(APP_IMAGE) $(IMAGE_URL)
 	docker push $(IMAGE_URL)
 	docker tag $(APP_IMAGE) $(REGISTRY)/$(PROJECT):latest
 	docker push $(REGISTRY)/$(PROJECT):latest
+
+.PHONY: write-image-definitions
+write-image-definitions:
+	@echo Writing image definitions file...
+	printf '[{"name":"%s","imageUri":"%s")}]' $(PROJECT) $(IMAGE_URL) > imagedefinitions.json
 
 FOLDER_CF_TEMPLATES := $(PWD)/infra
 FILE_CF_TEMPLATE_ENV_API := aws-env-api.yml
