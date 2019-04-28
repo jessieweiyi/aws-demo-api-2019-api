@@ -5,6 +5,8 @@ ENVIRONMENT := dev
 
 VERSION := $(shell whoami)
 APP_IMAGE := $(PROJECT):$(VERSION)
+IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
+SERVICE_NAME := $(PROJECT)-$(ENVIRONMENT)
 
 .PHONY: build
 build:
@@ -15,8 +17,6 @@ build:
 login-ecr:
 	@echo Logging in to Amazon ECR...
 	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
-
-IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 
 .PHONY: publish
 publish: 
@@ -29,7 +29,7 @@ publish:
 .PHONY: write-image-definitions
 write-image-definitions:
 	@echo Writing image definitions file...
-	printf '[{"name":"%s","imageUri":"%s"}]' $(PROJECT) $(IMAGE_URL) > imagedefinitions.json
+	printf '[{"name":"%s","imageUri":"%s"}]' $(SERVICE_NAME) $(IMAGE_URL) > imagedefinitions.json
 
 FOLDER_CF_TEMPLATES := $(PWD)/infra
 FILE_CF_TEMPLATE_ENV_API := aws-env-api.yml
@@ -70,7 +70,7 @@ PROVISION_PARAMETERS_STACK_ENV := --stack-name $(STACK_NAME_ENV_API) \
 		--template-body file://$(FOLDER_CF_TEMPLATES)/$(FILE_CF_TEMPLATE_ENV_API) \
 		--parameters ParameterKey=Environment,ParameterValue=$(ENVIRONMENT) \
 			ParameterKey=ClusterStackName,ParameterValue=$(CLUSTER_STACK_NAME) \
-			ParameterKey=ServiceName,ParameterValue=$(PROJECT)-$(ENVIRONMENT) \
+			ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) \
 			ParameterKey=Route53HostedZone,ParameterValue=$(ROUTE53_HOSTEDZONE) \
 			ParameterKey=DomainName,ParameterValue=$(DOMAIN_NAME) \
 			ParameterKey=ImageURL,ParameterValue=$(IMAGE_URL) \
