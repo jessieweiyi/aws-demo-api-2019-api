@@ -1,21 +1,18 @@
 import AWSServiceFactory from '../../services/awsServiceFactory';
+import Logger from '../../utils/logger';
 
-function queryJob(req, res, next) {
+const logger = Logger.logger('routeQueryJob');
+
+const queryJob = (req, res, next) => {
   const dbService = AWSServiceFactory.getDBService();
   const { jobId } = req.params;
   return dbService.getJob(jobId)
-    .then((result) => {
-      if (result) {
-        res.status(200).json(result);
-      } else {
-        res.status(204);
-      }
-    })
-    .catch(error => {
+    .then(result => res.json(result))
+    .catch((error) => {
       logger.error(error);
       res.status(500);
     })
     .then(next);
-}
-
-module.exports = queryJob;
+};
+ 
+export default queryJob;

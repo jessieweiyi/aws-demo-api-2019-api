@@ -4,9 +4,15 @@ Parameters:
   Environment:
     Type: String
     Description: "The deployment environment: dev, prod"
+  NetworkStackName:
+    Type: String
+    Description: "The name of the Network stack"
   ClusterStackName:
     Type: String
-    Description: "The name of the Fargate cluster stack"
+    Description: "The name of the ECS Fargate cluster stack"
+  AWSServicesStackName: 
+    Type: String
+    Description: "The name of the AWS services stack"
   ServiceName:
     Type: String
     Description: A name for the service
@@ -22,10 +28,7 @@ Parameters:
     ConstraintDescription: "must be a valid DNS zone name."
   ImageURL:
     Type: String
-    Description: The url of a docker image
-  AWSServicesStackName: 
-    Type: String
-    Description: "The name of the AWS services stack"
+    Description: The url of a docker image 
   ContainerPort:
     Type: Number
     Default: 4000
@@ -40,7 +43,7 @@ Parameters:
     Description: How much memory in megabytes to give the container
   DesiredCount:
     Type: Number
-    Default: 2
+    Default: 1
     Description: How many copies of the service task to run
 Resources:
   TaskDefinition:
@@ -77,13 +80,14 @@ Resources:
               awslogs-stream-prefix: !Ref ServiceName
   Service:
     Type: AWS::ECS::Service
-    DependsOn: LoadBalancerRule
     Properties:
-      ServiceName: !Ref 'ServiceName'
+      ServiceName: !Ref ServiceName
       Cluster:
         Fn::ImportValue:
           !Join [':', [!Ref 'ClusterStackName', 'ClusterName']]
       LaunchType: FARGATE
+      TaskDefinition: !Ref 'TaskDefinition'
+      SchedulingStrategy: REPLICA
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
@@ -96,14 +100,68 @@ Resources:
                 !Join [':', [!Ref 'ClusterStackName', 'ContainerSecurityGroup']]
           Subnets:
             - Fn::ImportValue:
-                !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetOne']]
+                !Join [':', [!Ref 'NetworkStackName', 'PublicSubnetOne']]
             - Fn::ImportValue:
-                !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetTwo']]
-      TaskDefinition: !Ref 'TaskDefinition'
+                !Join [':', [!Ref 'NetworkStackName', 'PublicSubnetTwo']]
       LoadBalancers:
         - ContainerName: !Ref 'ServiceName'
           ContainerPort: !Ref 'ContainerPort'
-          TargetGroupArn: !Ref 'TargetGroup'
+          TargetGroupArn: !Ref 'GreenTargetGroup'
+  GreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckPath: /api/v1/_health
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: ip
+      Port: !Ref 'ContainerPort'
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'NetworkStackName', 'VPCId']]
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref 'GreenTargetGroup'
+          Type: 'forward'
+      Conditions:
+        - Field: host-header
+          Values: 
+            - !Ref DomainName
+        - Field: path-pattern
+          Values: ['*']
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref GreenTargetGroup
+          Type: 'forward'
+      LoadBalancerArn: 
+        Fn::ImportValue:
+                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancer']]
+      Port: 80
+      Protocol: HTTP
+  BlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckPath: /api/v1/_health
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: ip
+      Port: !Ref 'ContainerPort'
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Fn::ImportValue:
+          !Join [':', [!Ref 'NetworkStackName', 'VPCId']]
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
@@ -127,6 +185,10 @@ Resources:
                 Resource:
                   - Fn::ImportValue: 
                       !Join [':', [!Ref 'AWSServicesStackName', 'S3BucketARN']]
+                  - Fn::Join:
+                      - ""
+                      - - Fn::ImportValue: !Join [':', [!Ref 'AWSServicesStackName', 'S3BucketARN']]
+                        - "/*"
               -
                 Effect: Allow
                 Action:
@@ -143,89 +205,21 @@ Resources:
                 Resource: 
                   Fn::ImportValue: 
                     !Join [':', [!Ref 'AWSServicesStackName', 'DynamoDBTableARN']]
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 6
-      HealthCheckPath: /api/v1/_health
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      TargetType: ip
-      Name: !Ref 'ServiceName'
-      Port: !Ref 'ContainerPort'
-      Protocol: HTTP
-      UnhealthyThresholdCount: 2
-      VpcId:
-        Fn::ImportValue:
-          !Join [':', [!Ref 'ClusterStackName', 'VPCId']]
-  LoadBalancerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      Actions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      Conditions:
-        - Field: path-pattern
-          Values: ['*']
-      ListenerArn: !Ref LoadBalancerListener
-      Priority: 1
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: internet-facing
-      LoadBalancerAttributes:
-        - Key: idle_timeout.timeout_seconds
-          Value: '30'
-      Subnets:
-        - Fn::ImportValue:
-            !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetOne']]
-        - Fn::ImportValue:
-            !Join [':', [!Ref 'ClusterStackName', 'PublicSubnetTwo']]
-      SecurityGroups: [!Ref 'LoadBalancerSG']
-  LoadBalancerListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    DependsOn:
-      - LoadBalancer
-    Properties:
-      DefaultActions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: 'forward'
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
-  LoadBalancerSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Access to the load balancer
-      VpcId: 
-        Fn::ImportValue:
-          !Join [':', [!Ref 'ClusterStackName', 'VPCId']]
-      SecurityGroupIngress:
-          # Allow access to ALB from anywhere on the internet
-          - CidrIp: 0.0.0.0/0
-            IpProtocol: -1
-  IngressFromLoadBalancer:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      Description: Ingress from the ALB
-      GroupId: 
-        Fn::ImportValue:
-          !Join [':', [!Ref 'ClusterStackName', 'ContainerSecurityGroup']]
-      IpProtocol: -1
-      SourceSecurityGroupId: !Ref 'LoadBalancerSG'
   DNSRecord:
     Type: AWS::Route53::RecordSet
-    DependsOn: LoadBalancer
     Properties:
       HostedZoneName: !Join ['', [!Ref 'Route53HostedZone', .]]
       Comment: "DNS name for AWS Demo App API"
       Name: !Ref DomainName
       Type: A
       AliasTarget:
-        DNSName: !GetAtt LoadBalancer.DNSName
+        DNSName: 
+              Fn::ImportValue:
+                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerDNSName']]
         EvaluateTargetHealth: false
-        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+        HostedZoneId: 
+              Fn::ImportValue:
+                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerCanonicalHostedZoneID']]
 Outputs:
   APIDomainName:
     Description: Domain name of the api

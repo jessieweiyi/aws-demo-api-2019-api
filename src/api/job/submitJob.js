@@ -24,6 +24,6 @@ const submitJob = (req, res, next) => {
       res.status(500);
     })
     .then(next);
-}
+};
 
-module.exports = submitJob;
+export default submitJob;

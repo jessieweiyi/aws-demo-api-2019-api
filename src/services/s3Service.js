@@ -15,11 +15,9 @@ export default class S3Service {
   }
 
   uploadObject(buffer, objectKey) {
-    const self = this;
-
     return new Promise((resolve, reject) => {
-      self.s3.putObject({
-        Bucket: self.config.bucketName,
+      this.s3.putObject({
+        Bucket: this.config.bucketName,
         Key: objectKey,
         Body: buffer,
         ACL: 'public-read'
