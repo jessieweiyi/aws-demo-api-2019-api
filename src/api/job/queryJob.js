@@ -14,5 +14,5 @@ const queryJob = (req, res, next) => {
     })
     .then(next);
 };
- 
+
 export default queryJob;

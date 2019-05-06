@@ -8,6 +8,10 @@ import api from './api';
 
 require('dotenv').config();
 
+/* eslint-disable */
+console.log('Environment', process.env)
+/* eslint-enable */
+
 const app = express();
 
 app.use(morgan('dev'));
