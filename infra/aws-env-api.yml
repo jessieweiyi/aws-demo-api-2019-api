@@ -129,14 +129,11 @@ Resources:
         - TargetGroupArn: !Ref 'GreenTargetGroup'
           Type: 'forward'
       Conditions:
-        - Field: host-header
-          Values: 
-            - !Ref DomainName
         - Field: path-pattern
           Values: ['*']
-      ListenerArn: !Ref LoadBalancerListener
+      ListenerArn: !Ref GreenLoadBalancerListener
       Priority: 1
-  LoadBalancerListener:
+  GreenLoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -144,8 +141,19 @@ Resources:
           Type: 'forward'
       LoadBalancerArn: 
         Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancer']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancer']]
       Port: 80
+      Protocol: HTTP
+  BlueLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref BlueTargetGroup
+          Type: 'forward'
+      LoadBalancerArn: 
+        Fn::ImportValue:
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancer']]
+      Port: 8080
       Protocol: HTTP
   BlueTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -215,11 +223,11 @@ Resources:
       AliasTarget:
         DNSName: 
               Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerDNSName']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancerDNSName']]
         EvaluateTargetHealth: false
         HostedZoneId: 
               Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerCanonicalHostedZoneID']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancerCanonicalHostedZoneID']]
 Outputs:
   APIDomainName:
     Description: Domain name of the api
