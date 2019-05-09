@@ -42,6 +42,11 @@ ifeq (prod, $(ENVIRONMENT))
 	DOMAIN_NAME := $(PROD_DOMAIN_NAME)
 endif
 
+.PHONY: login-ecr
+login-ecr:
+	@echo Logging in to Amazon ECR...
+	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
+
 .PHONY: pull-build-image
 pull-dependencies-image:
 	@echo Pulling the latest build image
@@ -52,17 +57,6 @@ build:
 	@echo Building the Docker image... 
 	docker build --cache-from $(BUILD_IMAGE_URL) -t $(APP_IMAGE) .
 
-.PHONY: build_push_dependencies_image
-build_push_dependencies_image:
-	@echo Building and Pushing the Docker Build image... 
-	docker build --cache-from $(BUILD_IMAGE_URL) --target dependencies -t $(BUILD_IMAGE_URL) .
-	docker push $(BUILD_IMAGE_URL)
-
-.PHONY: login-ecr
-login-ecr:
-	@echo Logging in to Amazon ECR...
-	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
-
 .PHONY: publish
 publish: 
 	@echo Tagging and Pushing the Docker images...
@@ -70,6 +64,12 @@ publish:
 	docker push $(IMAGE_URL)
 	docker tag $(APP_IMAGE) $(REGISTRY)/$(PROJECT):latest
 	docker push $(REGISTRY)/$(PROJECT):latest
+
+.PHONY: build_push_dependencies_image
+build_push_dependencies_image:
+	@echo Building and Pushing the Docker Build image... 
+	docker build --cache-from $(BUILD_IMAGE_URL) --target dependencies -t $(BUILD_IMAGE_URL) .
+	docker push $(BUILD_IMAGE_URL)
 
 .PHONY: write-image-definitions
 write-image-definitions:
