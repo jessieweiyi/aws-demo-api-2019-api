@@ -50,12 +50,12 @@ pull-dependencies-image:
 .PHONY: build
 build:
 	@echo Building the Docker image... 
-	docker build --cached-from=$(BUILD_IMAGE_URL) $(PROJECT) -t $(APP_IMAGE) .
+	docker build --cache-from $(BUILD_IMAGE_URL) -t $(APP_IMAGE) .
 
 .PHONY: build_push_dependencies_image
 build_push_dependencies_image:
 	@echo Building and Pushing the Docker Build image... 
-	docker build --cached-from=$(BUILD_IMAGE_URL) --target=dependencies $(PROJECT) -t $(BUILD_IMAGE_URL) .
+	docker build --cache-from $(BUILD_IMAGE_URL) --target dependencies -t $(BUILD_IMAGE_URL) .
 	docker push $(BUILD_IMAGE_URL)
 
 .PHONY: login-ecr
