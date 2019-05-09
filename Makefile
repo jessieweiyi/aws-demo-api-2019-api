@@ -8,6 +8,9 @@ APP_IMAGE := $(PROJECT):$(VERSION)
 IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 SERVICE_NAME := $(PROJECT)-$(ENVIRONMENT)
 
+ECR_REPO_BUILD := $(PROJECT)-build
+BUILD_IMAGE_URL := $(REGISTRY)/$(ECR_REPO_BUILD):latest
+
 GITHUB_OWNER:=jessieweiyi
 GITHUB_REPO:=aws-demo-app-2019-api
 
@@ -32,17 +35,28 @@ PROD_DOMAIN_NAME := api.aws-demo-app-2019.jessieweiyi.com
 ifeq (dev, $(ENVIRONMENT))
 	ROUTE53_HOSTEDZONE := $(DEV_ROUTE53_HOSTEDZONE)
 	DOMAIN_NAME := $(DEV_DOMAIN_NAME)
-endif
+
 
 ifeq (prod, $(ENVIRONMENT))
 	ROUTE53_HOSTEDZONE := $(PROD_ROUTE53_HOSTEDZONE)
 	DOMAIN_NAME := $(PROD_DOMAIN_NAME)
 endif
 
+.PHONY: pull-build-image
+pull-dependencies-image:
+	@echo Pulling the latest build image
+	docker pull $(BUILD_IMAGE_URL) || exit 0
+
 .PHONY: build
 build:
 	@echo Building the Docker image... 
-	docker build -t $(APP_IMAGE) .
+	docker build --cached-from=$(BUILD_IMAGE_URL) $(PROJECT) -t $(APP_IMAGE) .
+
+.PHONY: build_push_dependencies_image
+build_push_dependencies_image:
+	@echo Building and Pushing the Docker Build image... 
+	docker build --cached-from=$(BUILD_IMAGE_URL) --target=dependencies $(PROJECT) -t $(BUILD_IMAGE_URL) .
+	docker push $(BUILD_IMAGE_URL)
 
 .PHONY: login-ecr
 login-ecr:
