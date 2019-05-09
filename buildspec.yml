@@ -6,7 +6,7 @@ phases:
       - make login-ecr
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - VERSION=${COMMIT_HASH:=latest}
-      - make pull-depensdencies-image
+      - make pull-dependencies-image
   build:
     commands:
       - make VERSION=$VERSION build
