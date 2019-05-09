@@ -12,7 +12,7 @@ Resources:
   ECRBuildRepository:
     Type: AWS::ECR::Repository
     Properties: 
-      RepositoryName: !Join ['_', [!Ref 'ECRRepositoryName', 'build']]
+      RepositoryName: !Join ['-', [!Ref 'ECRRepositoryName', 'build']]
 Outputs:
   ECRRepository:
     Description: "The Name of ECR Repository"
