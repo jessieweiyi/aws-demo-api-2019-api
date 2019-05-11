@@ -33,4 +33,5 @@ RUN chown $user -R /opt/app
 USER $user
 
 EXPOSE 4000
-ENTRYPOINT ["yarn", "start"]
+ENTRYPOINT ["yarn"]
+CMD ["start"]

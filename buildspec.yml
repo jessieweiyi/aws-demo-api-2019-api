@@ -6,6 +6,7 @@ phases:
       - make login-ecr
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - VERSION=${COMMIT_HASH:=latest}
+      - make pull-dependencies-image
   build:
     commands:
       - make VERSION=$VERSION build
@@ -13,5 +14,6 @@ phases:
     commands:
       - make VERSION=$VERSION publish
       - make VERSION=$VERSION write-image-definitions
+      - make build_push_dependencies_image
 artifacts:
     files: imagedefinitions.json

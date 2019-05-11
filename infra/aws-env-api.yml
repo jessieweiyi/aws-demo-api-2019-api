@@ -16,6 +16,9 @@ Parameters:
   ServiceName:
     Type: String
     Description: A name for the service
+  ProjectName:
+    Type: String
+    Description: A name for the project.
   Route53HostedZone:
     Type: String
     Description: "The DNS name of an existing Amazon Route 53 hosted zone"
@@ -60,7 +63,7 @@ Resources:
           !Join [':', [!Ref 'ClusterStackName', 'ECSTaskExecutionRole']]
       TaskRoleArn: !Ref TaskRole
       ContainerDefinitions:
-        - Name: !Ref 'ServiceName'
+        - Name: !Ref 'ProjectName'
           Cpu: !Ref 'ContainerCpu'
           Memory: !Ref 'ContainerMemory'
           Image: !Ref 'ImageURL'
@@ -104,7 +107,7 @@ Resources:
             - Fn::ImportValue:
                 !Join [':', [!Ref 'NetworkStackName', 'PublicSubnetTwo']]
       LoadBalancers:
-        - ContainerName: !Ref 'ServiceName'
+        - ContainerName: !Ref 'ProjectName'
           ContainerPort: !Ref 'ContainerPort'
           TargetGroupArn: !Ref 'GreenTargetGroup'
   GreenTargetGroup:
@@ -129,14 +132,11 @@ Resources:
         - TargetGroupArn: !Ref 'GreenTargetGroup'
           Type: 'forward'
       Conditions:
-        - Field: host-header
-          Values: 
-            - !Ref DomainName
         - Field: path-pattern
           Values: ['*']
-      ListenerArn: !Ref LoadBalancerListener
+      ListenerArn: !Ref GreenLoadBalancerListener
       Priority: 1
-  LoadBalancerListener:
+  GreenLoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -144,8 +144,19 @@ Resources:
           Type: 'forward'
       LoadBalancerArn: 
         Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancer']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancer']]
       Port: 80
+      Protocol: HTTP
+  BlueLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref BlueTargetGroup
+          Type: 'forward'
+      LoadBalancerArn: 
+        Fn::ImportValue:
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancer']]
+      Port: 8080
       Protocol: HTTP
   BlueTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -202,6 +213,7 @@ Resources:
                   - dynamodb:DescribeTable
                   - dynamodb:Query
                   - dynamodb:PutItem
+                  - dynamodb:GetItem
                 Resource: 
                   Fn::ImportValue: 
                     !Join [':', [!Ref 'AWSServicesStackName', 'DynamoDBTableARN']]
@@ -215,11 +227,11 @@ Resources:
       AliasTarget:
         DNSName: 
               Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerDNSName']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancerDNSName']]
         EvaluateTargetHealth: false
         HostedZoneId: 
               Fn::ImportValue:
-                !Join [':', [!Ref 'NetworkStackName', 'LoadBalancerCanonicalHostedZoneID']]
+                !Join [':', [!Ref 'ClusterStackName', 'LoadBalancerCanonicalHostedZoneID']]
 Outputs:
   APIDomainName:
     Description: Domain name of the api

@@ -8,6 +8,9 @@ APP_IMAGE := $(PROJECT):$(VERSION)
 IMAGE_URL := $(REGISTRY)/$(PROJECT):$(VERSION)
 SERVICE_NAME := $(PROJECT)-$(ENVIRONMENT)
 
+ECR_REPO_BUILD := $(PROJECT)-build
+BUILD_IMAGE_URL := $(REGISTRY)/$(ECR_REPO_BUILD):latest
+
 GITHUB_OWNER:=jessieweiyi
 GITHUB_REPO:=aws-demo-app-2019-api
 
@@ -39,15 +42,20 @@ ifeq (prod, $(ENVIRONMENT))
 	DOMAIN_NAME := $(PROD_DOMAIN_NAME)
 endif
 
-.PHONY: build
-build:
-	@echo Building the Docker image... 
-	docker build -t $(APP_IMAGE) .
-
 .PHONY: login-ecr
 login-ecr:
 	@echo Logging in to Amazon ECR...
 	 `aws ecr get-login --region $(AWS_REGION) --no-include-email`
+
+.PHONY: pull-build-image
+pull-dependencies-image:
+	@echo Pulling the latest build image
+	docker pull $(BUILD_IMAGE_URL) || exit 0
+
+.PHONY: build
+build:
+	@echo Building the Docker image... 
+	docker build --cache-from $(BUILD_IMAGE_URL) -t $(APP_IMAGE) .
 
 .PHONY: publish
 publish: 
@@ -57,14 +65,21 @@ publish:
 	docker tag $(APP_IMAGE) $(REGISTRY)/$(PROJECT):latest
 	docker push $(REGISTRY)/$(PROJECT):latest
 
+.PHONY: build_push_dependencies_image
+build_push_dependencies_image:
+	@echo Building and Pushing the Docker Build image... 
+	docker build --cache-from $(BUILD_IMAGE_URL) --target dependencies -t $(BUILD_IMAGE_URL) .
+	docker push $(BUILD_IMAGE_URL)
+
 .PHONY: write-image-definitions
 write-image-definitions:
 	@echo Writing image definitions file...
-	printf '[{"name":"%s","imageUri":"%s"}]' $(SERVICE_NAME) $(IMAGE_URL) > imagedefinitions.json
+	printf '[{"name":"%s","imageUri":"%s"}]' $(PROJECT) $(IMAGE_URL) > imagedefinitions.json
 
 PROVISION_PARAMETERS_STACK_ENV := --stack-name $(STACK_NAME_ENV_API) \
 		--template-body file://$(FOLDER_CF_TEMPLATES)/$(FILE_CF_TEMPLATE_ENV_API) \
 		--parameters ParameterKey=Environment,ParameterValue=$(ENVIRONMENT) \
+			ParameterKey=ProjectName,ParameterValue=$(PROJECT) \
 			ParameterKey=NetworkStackName,ParameterValue=$(NETWORK_STACK_NAME) \
 			ParameterKey=ClusterStackName,ParameterValue=$(CLUSTER_STACK_NAME) \
 			ParameterKey=ServiceName,ParameterValue=$(SERVICE_NAME) \
