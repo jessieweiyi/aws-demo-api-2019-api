@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - `aws ecr get-login --region $(AWS_REGION) --no-include-email`
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - VERSION=${COMMIT_HASH:=latest}
+      - docker pull $(REGISTRY)/aws-demo-app-2019-api-build:latest || exit 0
+  build:
+    commands:
+      - docker build --cache-from $REGISTRY/aws-demo-app-2019-api-build:latest -t aws-demo-app-2019-api:$VERSION .
+  post_build:
+    commands:
+      - docker tag aws-demo-app-2019-api:$VERSION $REGISTRY/aws-demo-app-2019-api:$VERSION
+      - docker push $REGISTRY/aws-demo-app-2019-api:$VERSION
+      - docker tag aws-demo-app-2019-api:$VERSION $REGISTRY/aws-demo-app-2019-api:latest
+      - docker push $(REGISTRY)/aws-demo-app-2019-api:latest
+      - docker build --target dependencies --cache-from $REGISTRY/aws-demo-app-2019-api-build:latest -t $REGISTRY/aws-demo-app-2019-api-build:latest .
+      - docker push $REGISTRY/aws-demo-app-2019-api-build:latest
+artifacts:
+    files: imagedefinitions.json

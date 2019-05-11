@@ -35,11 +35,13 @@ PROD_DOMAIN_NAME := api.aws-demo-app-2019.jessieweiyi.com
 ifeq (dev, $(ENVIRONMENT))
 	ROUTE53_HOSTEDZONE := $(DEV_ROUTE53_HOSTEDZONE)
 	DOMAIN_NAME := $(DEV_DOMAIN_NAME)
+	API_ENDPOINT := http://api.aws-demo-app-2019.dev.jessieweiyi.com
 endif
 
 ifeq (prod, $(ENVIRONMENT))
 	ROUTE53_HOSTEDZONE := $(PROD_ROUTE53_HOSTEDZONE)
 	DOMAIN_NAME := $(PROD_DOMAIN_NAME)
+	API_ENDPOINT := http://api.aws-demo-app-2019.jessieweiyi.com
 endif
 
 .PHONY: login-ecr
@@ -115,4 +117,8 @@ create-pipeline-api:
 update-pipeline-api: 
 	aws cloudformation update-stack $(PROVISION_PARAMETERS_STACK_PIPELINE)
 	aws cloudformation wait stack-update-complete --stack-name $(STACK_NAME_PIPELINE_API)
+
+.PHONY: watch-helloworld
+watch-helloworld:
+	while sleep 1; do curl $(API_ENDPOINT)/api/v1/hello_world; done
 
